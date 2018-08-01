@@ -83,6 +83,8 @@ class Wanderer:
         self.c = c
         self.age = 1
         self.energy = 5
+        self.meals = 0
+
     def __str__(self):
         return 'W'
     def next_pos(self):
@@ -90,9 +92,19 @@ class Wanderer:
         cdiff = [-1, 0, 1, -1, 1, -1, 0, 1]
         n = rand_num = random.randint(0, 7)
         return (self.r + rdiff[n], self.c + cdiff[n])
+    def growing(self):
+        self.age = generation - 1
+        return self.age
     def health(self):
-        pass
-
+        self.energy = self.energy - self.growing()
+        return self.energy
+    def eat(self):
+        r, c = self.r, self.c
+        self.meals += 1
+        return Wanderer(r, c)
+    def nutrition(self):
+        self.meals += 1
+        return self.meals
 
 
 
@@ -100,16 +112,17 @@ class World:
     def __init__(self, grid_size):
         self.grid_size = grid_size
         self.grid = []
-        self.wanderer = Wanderer(5, 5)
+        self.wanderers = []
         self.new_grid = deepcopy(self.grid)
-        self.plant = Plant(7, 3)
+        self.plant = Plant(25, 25)
         for _ in range(grid_size):
             self.grid.append([' '] * grid_size)
         for r in range(grid_size):
             for c in range(grid_size):
-                self.grid[r][c] = Empty(r, c)
-
-
+                self.grid[r][c] = Plant(r, c)
+        for i in range(50):
+            self.wanderers.append(Wanderer(25, i))
+            self.grid[25][i] = Wanderer(25, i)
 
     def __str__(self):
         output = ""
@@ -119,35 +132,29 @@ class World:
             output += "\n"
         return output
 
-    def age(self):
-        self.wanderer.age = generation - 1
-        return self.wanderer.age
-    def hunger(self):
-        self.wanderer.energy = generation - 1
-        return self.wanderer.energy
-    def eat(self):
-        r, c = self.wanderer.r, self.wanderer.c
-        return Wanderer(r, c)
-    def health(self):
-        self.wanderer.energy += 1
-        return self.wanderer.energy
-
     def next(self):
-        new_r, new_c = self.wanderer.next_pos()
-        new_x, new_y = self.plant.new_plant()
-        if world.age() >= 20 and world.hunger() < 5:
-            r, c = self.wanderer.r, self.wanderer.c
-            self.grid[r][c] = Empty(r,c)
-        else:
-            if 0 <= new_r < self.grid_size and 0 <= new_c < self.grid_size:
-                if new_r== new_x and new_c==new_y:
-                    self.grid[new_r][new_c] = world.eat()
-                    world.health()
-                r, c = self.wanderer.r, self.wanderer.c
-                self.grid[new_r][new_c] = self.wanderer
-                self.grid[r][c] = Empty(r, c)
-                self.wanderer.r = new_r
-                self.wanderer.c = new_c
+        for wanderer in self.wanderers:
+            new_r, new_c = wanderer.next_pos()
+            new_x, new_y = self.plant.new_plant()
+            hunger = wanderer.health()
+            r, c = wanderer.r, wanderer.c
+            if hunger + wanderer.nutrition() <= 0:
+                self.grid[r][c] = Empty(r,c)
+            elif wanderer.growing() >= 100:
+                self.grid[r][c] = Empty(r,c)
+            elif 0 <= new_r < self.grid_size and 0 <= new_c < self.grid_size:
+                if new_r == new_x and new_c == new_y:
+                    self.grid[new_r][new_c] = wanderer.eat()
+                    wanderer.nutrition()
+                    self.grid[new_r][new_c] = wanderer
+                    self.grid[r][c] = Empty(r, c)
+                    wanderer.r = new_r
+                    wanderer.c = new_c
+                else:
+                    self.grid[new_r][new_c] = wanderer
+                    self.grid[r][c] = Empty(r, c)
+                    wanderer.r = new_r
+                    wanderer.c = new_c
         if 0 <= new_x < self.grid_size and 0 <= new_y < self.grid_size and new_r != new_x and new_c != new_y:
             r, c = self.plant.r, self.plant.c
             self.grid[new_x][new_y] = self.plant
@@ -158,7 +165,8 @@ class World:
 
 
 
-world = World(10) #gives parameters needed to call it
+
+world = World(50) #gives parameters needed to call it
 wanderer = Wanderer(5, 5)
 print(world)
 generation = 1
@@ -166,6 +174,7 @@ while generation > 0:
     os.system('clear')
     print(world)
     print("Generation " + str(generation))
+    print(world.next())
     generation += 1
     world.next()
     time.sleep(.3)
