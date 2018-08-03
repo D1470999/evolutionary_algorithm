@@ -83,8 +83,6 @@ class Wanderer:
         self.c = c
         self.age = 1
         self.energy = 5
-        self.meals = 0
-
     def __str__(self):
         return 'W'
     def next_pos(self):
@@ -92,20 +90,6 @@ class Wanderer:
         cdiff = [-1, 0, 1, -1, 1, -1, 0, 1]
         n = rand_num = random.randint(0, 7)
         return (self.r + rdiff[n], self.c + cdiff[n])
-    def growing(self):
-        self.age = generation - 1
-        return self.age
-    def health(self):
-        self.energy = self.energy - self.growing()
-        return self.energy
-    def eat(self):
-        r, c = self.r, self.c
-        self.meals += 1
-        return Wanderer(r, c)
-    def nutrition(self):
-        self.meals += 1
-        return self.meals
-
 
 
 class World:
@@ -115,6 +99,7 @@ class World:
         self.wanderers = []
         self.new_grid = deepcopy(self.grid)
         self.plant = Plant(25, 25)
+        self.age = 45
         for _ in range(grid_size):
             self.grid.append([' '] * grid_size)
         for r in range(grid_size):
@@ -123,7 +108,6 @@ class World:
         for i in range(50):
             self.wanderers.append(Wanderer(25, i))
             self.grid[25][i] = Wanderer(25, i)
-
     def __str__(self):
         output = ""
         for row in self.grid:
@@ -131,36 +115,41 @@ class World:
                 output += str(char) + ' '
             output += "\n"
         return output
-
+    def growth(self):
+        self.age += 1
+        return self.age
+    def health(self, age, energy):
+        self.energy = energy
+        self.age = age
+        self.energy -= self.age
+        return self.energy
+    def eat(self):
+        self.energy += 1
+        return self.energy
     def next(self):
         for wanderer in self.wanderers:
             new_r, new_c = wanderer.next_pos()
             new_x, new_y = self.plant.new_plant()
-            hunger = wanderer.health()
+            hunger = self.health(wanderer.age, wanderer.energy)
             r, c = wanderer.r, wanderer.c
-            if hunger + wanderer.nutrition() <= 0:
-                self.grid[r][c] = Empty(r,c)
-            elif wanderer.growing() >= 100:
-                self.grid[r][c] = Empty(r,c)
+            if hunger <= 0:
+                self.new_grid[r][c] = Empty(r,c)
+            elif self.growth() >= 100:
+                self.new_grid[r][c] = Empty(r,c)
             elif 0 <= new_r < self.grid_size and 0 <= new_c < self.grid_size:
+                self.new_grid[new_r][new_c] = wanderer
+                self.new_grid[r][c] = Empty(r, c)
+                wanderer.r = new_r
+                wanderer.c = new_c
                 if new_r == new_x and new_c == new_y:
-                    self.grid[new_r][new_c] = wanderer.eat()
-                    wanderer.nutrition()
-                    self.grid[new_r][new_c] = wanderer
-                    self.grid[r][c] = Empty(r, c)
-                    wanderer.r = new_r
-                    wanderer.c = new_c
-                else:
-                    self.grid[new_r][new_c] = wanderer
-                    self.grid[r][c] = Empty(r, c)
-                    wanderer.r = new_r
-                    wanderer.c = new_c
+                    self.energy = self.eat()
         if 0 <= new_x < self.grid_size and 0 <= new_y < self.grid_size and new_r != new_x and new_c != new_y:
             r, c = self.plant.r, self.plant.c
-            self.grid[new_x][new_y] = self.plant
+            self.new_grid[new_x][new_y] = self.plant
             self.plant.r = new_x
             self.plant.c = new_y
-
+        self.grid = self.new_grid[:]
+        self.new_grid = deepcopy(self.grid)
 
 
 
@@ -175,6 +164,8 @@ while generation > 0:
     print(world)
     print("Generation " + str(generation))
     print(world.next())
+    for wanderer in world.wanderers:
+        print(world.growth())
     generation += 1
     world.next()
     time.sleep(.3)
