@@ -52,8 +52,6 @@ import time
 import os
 from copy import deepcopy
 
-
-
 class Empty:
     def __init__(self, r, c):
         self.r = r
@@ -62,6 +60,22 @@ class Empty:
         return '.'
     def next_pos(self):
         return (self.r, self.c)
+
+class Animal:
+    def __init__(self):
+        self.age = 0
+        self.energy = 5
+    def growth(self):
+        self.age += 1
+        return self.age
+    def health(self):
+        self.energy -= self.age
+        return self.energy
+    def eat(self):
+        self.energy += 1
+        return self.energy
+    def reproduce(self):
+        self.energy -= 10
 
 class Plant:
     def __init__(self, r, c):
@@ -77,11 +91,11 @@ class Plant:
         n = rand_num = random.randint(0, 7)
         return (self.r + rdiff[n], self.c + cdiff[n])
 
-class Wanderer:
+class Cow(Animal):
     def __init__(self, r, c):
         self.r = r
         self.c = c
-        self.age = 1
+        self.age = 0
         self.energy = 5
     def __str__(self):
         return 'W'
@@ -91,13 +105,21 @@ class Wanderer:
         n = rand_num = random.randint(0, 7)
         return (self.r + rdiff[n], self.c + cdiff[n])
 
+class Bear(Animal):
+    def __init__(self, r, c):
+        self.r = r
+        self.c = c
+
+class Human(Animal):
+    def __init__(self, r, c):
+        self.r = r
+        self.c = c
 
 class World:
     def __init__(self, grid_size):
         self.grid_size = grid_size
         self.grid = []
-        self.wanderers = []
-        self.new_grid = deepcopy(self.grid)
+        self.cows = []
         self.plant = Plant(25, 25)
         self.age = 45
         for _ in range(grid_size):
@@ -106,43 +128,38 @@ class World:
             for c in range(grid_size):
                 self.grid[r][c] = Plant(r, c)
         for i in range(50):
-            self.wanderers.append(Wanderer(25, i))
-            self.grid[25][i] = Wanderer(25, i)
+            self.cows.append(Cow(25, i))
+            self.grid[25][i] = Cow(25, i)
     def __str__(self):
         output = ""
         for row in self.grid:
             for char in row:
                 output += str(char) + ' '
             output += "\n"
+        self.new_grid = deepcopy(self.grid)
         return output
-    def growth(self):
-        self.age += 1
-        return self.age
-    def health(self, age, energy):
-        self.energy = energy
-        self.age = age
-        self.energy -= self.age
-        return self.energy
-    def eat(self):
-        self.energy += 1
-        return self.energy
+
     def next(self):
-        for wanderer in self.wanderers:
-            new_r, new_c = wanderer.next_pos()
+        for cow in self.cows:
+            new_r, new_c = cow.next_pos()
             new_x, new_y = self.plant.new_plant()
-            hunger = self.health(wanderer.age, wanderer.energy)
-            r, c = wanderer.r, wanderer.c
-            if hunger <= 0:
+            health = cow.health()
+            age = cow.growth()
+            r, c = cow.r, cow.c
+            if cow.energy < 0:
                 self.new_grid[r][c] = Empty(r,c)
-            elif self.growth() >= 100:
+            elif age >= 100:
                 self.new_grid[r][c] = Empty(r,c)
-            elif 0 <= new_r < self.grid_size and 0 <= new_c < self.grid_size:
-                self.new_grid[new_r][new_c] = wanderer
+            if 0 <= new_r < self.grid_size and 0 <= new_c < self.grid_size:
+                self.new_grid[new_r][new_c] = cow
                 self.new_grid[r][c] = Empty(r, c)
-                wanderer.r = new_r
-                wanderer.c = new_c
+                cow.r = new_r
+                cow.c = new_c
                 if new_r == new_x and new_c == new_y:
-                    self.energy = self.eat()
+                    cow.energy = cow.eat()
+            if cow.energy > 15:
+                cow.reproduce()
+                self.cows.append(Cows(cow.r, cow.c+1))
         if 0 <= new_x < self.grid_size and 0 <= new_y < self.grid_size and new_r != new_x and new_c != new_y:
             r, c = self.plant.r, self.plant.c
             self.new_grid[new_x][new_y] = self.plant
@@ -156,16 +173,15 @@ class World:
 
 
 world = World(50) #gives parameters needed to call it
-wanderer = Wanderer(5, 5)
+cow = Cow(5, 5)
 print(world)
 generation = 1
 while generation > 0:
     os.system('clear')
     print(world)
     print("Generation " + str(generation))
-    print(world.next())
-    for wanderer in world.wanderers:
-        print(world.growth())
+    for cow in world.cows:
+        print(cow.age, cow.energy)
     generation += 1
     world.next()
-    time.sleep(.3)
+    time.sleep(.2)
